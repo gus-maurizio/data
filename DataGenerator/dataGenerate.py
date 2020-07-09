@@ -154,8 +154,6 @@ def main():
   customerIDs = genCustomerIDs(num=args.customers)
   bankIDs     = genBankIDs(num=args.banks)
   writeCustomers(customerIDs, fname=args.fcustomer, zip=args.gzip)
-
-  # We proceed to generate transactions for bank deposits for randomly selected customers
   generateDeposits(customerIDs, bankIDs, num=args.deposits, fname=args.fdeposits, mean=args.amount, std=args.std, cash=args.cash, zip=args.gzip)
 
   end = timer()
