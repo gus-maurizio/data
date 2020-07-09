@@ -92,7 +92,7 @@ def main():
     plt.title('St Petersburg Simulation', fontname='Times New Roman',fontweight='bold')
     plt.xlabel('Trial')
     plt.ylabel('average payoff')
-    plt.axhline(y=args.M, xmin=0, xmax=args.trials, hold=None, c='blue',linewidth=0.5, ls='dashed')
+    plt.axhline(y=args.M, xmin=0, xmax=args.trials, c='blue',linewidth=0.5, ls='dashed')
     plt.text(args.trials/2, args.M/2, 'Max pay {:,} ({:.2f}/{:.2f})'.format(max_pay,np.amin(results), np.amax(results)))
     plt.show()
     

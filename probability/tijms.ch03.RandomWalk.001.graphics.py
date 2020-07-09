@@ -71,7 +71,7 @@ def main():
     plt.title('Random Walk with p={:.4f}'.format(args.p), fontname='Times New Roman',fontweight='bold')
     plt.xlabel('moves')
     plt.ylabel('position')
-    plt.axhline(y=0, xmin=0, xmax=xmx, hold=None, c='grey',linewidth=0.5, ls='dashed')
+    plt.axhline(y=0, xmin=0, xmax=xmx, c='grey',linewidth=0.5, ls='dashed')
 
     # Carry out the trials
     for i in range(args.trials):
