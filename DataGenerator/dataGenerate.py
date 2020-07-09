@@ -24,13 +24,18 @@ class CustomJsonEncoder(json.JSONEncoder):
 
 def getArgs():
   parser = argparse.ArgumentParser(description='Generate test data.')
-  parser.add_argument('-c', '--customers', type=int, default=100000, help='#customers')
-  parser.add_argument('-k', '--cash',   type=int, default=5, help='avgcashdeposits')
-  parser.add_argument('-q', '--check',  type=int, default=5, help='avgcheckdeposits')
-  parser.add_argument('-a', '--amount', type=int, default=1000, help='avgamount')
-  parser.add_argument('-s', '--std',    type=int, default=500, help='stdamount')
+  parser.add_argument('-c', '--customers', type=int, default=1000, help='#customers')
+  # parser.add_argument('-k', '--cash',   type=int, default=5, help='avgcashdeposits')
+  # parser.add_argument('-q', '--check',  type=int, default=5, help='avgcheckdeposits')
+
+  parser.add_argument('-d', '--deposits',     type=int,   default=10,    help='#bank deposits')
+  parser.add_argument('-k', '--cash',         type=float, default=0.15,  help='% of deposits in cash')
+  parser.add_argument('-a', '--amount',       type=int, default=5000,    help='avgamount')
+  parser.add_argument('-s', '--std',          type=int, default=1000,    help='stdamount')
+  
 
   parser.add_argument('-fc', '--fcustomer', type=str, default="customer", help='filename (no extension)')
+  parser.add_argument('-fd', '--fdeposits', type=str, default="deposits", help='filename (no extension)')
   parser.add_argument('-z',  '--gzip',      type=str2bool, nargs='?',const=True, default=False,help='Activate gzip.')
   args = parser.parse_args()
   return args
@@ -72,6 +77,53 @@ def writeCustomers(customerIDs, fname="customer", zip=False):
   jsnfile.close()
   return
 
+def generateDeposits(customerIDs, num=10, fname="deposits", mean=100, std=20, cash=0.10, zip=False):
+  if zip:
+    myOpen = gzip.open
+    myMode = "wt"
+    mySuffix = ".gz"
+  else:
+    myOpen = open
+    myMode = "w"
+    mySuffix = ""
+  csvfile = myOpen(fname + ".csv"  + mySuffix, myMode, newline='')
+  jsnfile = myOpen(fname + ".json" + mySuffix, myMode)
+
+  # create random transactions between customers (for bank deposits) and cash deposits
+  for i in range(num):
+    # spin the roulette
+    luck = random.random()
+    isBank = True if luck > cash else False
+    numCustomers = 2 if isBank else 1
+    customers = random.sample(customerIDs, numCustomers) # returns 1 or 2 customers
+    deposit = round(random.gauss(mean, std),2)
+    timestamp = fake.date_time_between_dates(datetime_start=(datetime.today() - timedelta(days=1)).replace(hour=1, minute=0, second=0, microsecond=0), datetime_end=(datetime.today() - timedelta(days=1)).replace(hour=23, minute=30, second=0, microsecond=0), tzinfo=None)
+    record = {
+      "timestamp":      timestamp,
+      "amount":         deposit,
+      "type":           "bankxfer" if isBank else "cash",
+      "to_customer":    customers[0],
+      "from_customer":  customers[1] if isBank else None,
+      "to_account":     fake.iban(),
+      "from_account":   fake.iban() if isBank else None,
+    }
+    print("{} {} {} {} {} {:0.2f} {}\n{}".format(i,luck,isBank,numCustomers,customers,deposit, timestamp,json.dumps(record, cls=CustomJsonEncoder)))
+  return
+  # head = True
+  # for c in customerIDs:
+  #   profile = fake.profile()
+  #   profile['ID'] = c
+  #   print(json.dumps(profile, cls=CustomJsonEncoder), file=jsnfile)
+  #   if head:
+  #     head = False
+  #     fieldnames = profile.keys()
+  #     writer = csv.DictWriter(csvfile, fieldnames=fieldnames, quoting=csv.QUOTE_NONNUMERIC)
+  #     writer.writeheader()
+  #   writer.writerow(profile)
+  # csvfile.close()
+  # jsnfile.close()
+  # return
+
 def str2bool(v):
   if isinstance(v, bool):
     return v
@@ -81,89 +133,6 @@ def str2bool(v):
     return False
   else:
     raise argparse.ArgumentTypeError('Boolean value expected.')
-
-def first_name_and_gender():
-  g = 'M' if random.randint(0, 1) == 0 else 'F'
-  n = fake.first_name_male() if g == 'M' else fake.first_name_female()
-  return {'gender': g, 'first_name': n}
-
-
-def birth_and_start_date():
-  sd = fake.date_between(start_date="-20y", end_date="now")
-  delta = timedelta(days=365 * random.randint(18, 40))
-  bd = sd - delta
-
-  return {
-    'birth_date': bd.strftime('%m/%d/%Y'),
-    'start_date': sd.strftime('%m/%d/%Y')
-  }
-
-
-def birth_and_start_date_on_windows():
-  bd = datetime(1960, 1, 1) + timedelta(seconds=random.randint(
-    0, 1261600000))  #40 year time delta
-  earliest_start_date = bd + timedelta(seconds=random.randint(
-    0, 567720000))  #earliest start date is 18 years after birth
-  latest_start_date = datetime.now()
-
-  delta = latest_start_date - earliest_start_date
-  delta_in_seconds = delta.days * 24 * 60 * 60 + delta.seconds
-  random_second = random.randint(0, delta_in_seconds)
-  return {
-    'birth_date': bd.strftime('%m/%d/%Y'),
-    'start_date': (bd + timedelta(seconds=random_second)).strftime('%m/%d/%Y')
-  }
-
-
-def title_office_org():
-  #generate a map of real office to fake office
-  offices = ['New York', 'Austin', 'Seattle', 'Chicago']
-  #codify the hierarchical structure
-  allowed_orgs_per_office = {
-    'New York': ['Sales'],
-    'Austin': ['Devops', 'Platform', 'Product', 'Internal Tools'],
-    'Chicago': ['Devops'],
-    'Seattle': ['Internal Tools', 'Product']
-  }
-  allowed_titles_per_org = {
-    'Devops': ['Engineer', 'Senior Engineer', 'Manager'],
-    'Sales': ['Associate'],
-    'Platform': ['Engineer'],
-    'Product': ['Manager', 'VP'],
-    'Internal Tools': ['Engineer', 'Senior Engineer', 'VP', 'Manager']
-  }
-
-  office = random.choice(offices)
-  org = random.choice(allowed_orgs_per_office[office])
-  title = random.choice(allowed_titles_per_org[org])
-  return {'office': office, 'title': title, 'org': org}
-
-
-def salary_and_bonus():
-  salary = round(random.randint(90000, 120000) / 1000) * 1000
-  bonus_ratio = random.uniform(0.15, 0.2)
-  bonus = round(salary * bonus_ratio / 500) * 500
-  return {'salary': salary, 'bonus': bonus}
-
-
-def title_office_org_salary_bonus():
-  position = title_office_org()
-  title_and_salary_range = {
-    'Engineer': [90, 120],
-    'Senior Engineer': [110, 140],
-    'Manager': [130, 150],
-    'Associate': [60, 80],
-    'VP': [150, 250]
-  }
-  salary_range = title_and_salary_range[position['title']]
-
-  salary = round(
-    random.randint(1000 * salary_range[0], 1000 * salary_range[1]) / 1000
-  ) * 1000
-  bonus_ratio = random.uniform(0.15, 0.2)
-  bonus = round(salary * bonus_ratio / 500) * 500
-  position.update({'salary': salary, 'bonus': bonus})
-  return position
 
 
 def main():
@@ -175,34 +144,12 @@ def main():
 
   customerIDs = genCustomerIDs(num=args.customers)
   writeCustomers(customerIDs, fname=args.fcustomer, zip=args.gzip)
-  
-  # Create customer IDs based on args.customers
-  d = dict()
-  #d['first_name_and_gender'] = first_name_and_gender
-  #d['last_name'] = lambda: {'last_name':fake.last_name()}
-  #d['personal_email'] = lambda: {'email':fake.email()}
-  #d['ssn'] = lambda: {'ssn':fake.ssn()}
-  #d['birth_and_start_date'] = birth_and_start_date
-  #d['title_office_org_salary_bonus'] = title_office_org_salary_bonus
-  #d['accrued_holidays']  = lambda: {'accrued_holiday':random.randint(0,20)}
-  #d['transaction_value'] = lambda: {'transaction_value':random.randint(1,20000)}
 
-  #csvfile = open('fakedata.csv', 'w', newline='')
-  #head = True
-
-  #for _ in range(numRows):
-  #	  row = {key: val for k in d.keys() for key,val in d[k]().items()}
-  #	  if head:
-  #	    head = False
-  #	    fieldnames = row.keys()
-  #	    writer = csv.DictWriter(csvfile, fieldnames=fieldnames, quoting=csv.QUOTE_NONNUMERIC)
-  #	    writer.writeheader()
-  # print(json.dumps(row))
-  #	  writer.writerow(row)
+  # We proceed to generate transactions for bank deposits for randomly selected customers
+  generateDeposits(customerIDs, num=args.deposits, fname=args.fdeposits, mean=args.amount, std=args.std, cash=args.cash, zip=args.gzip)
 
   end = timer()
   time_elapsed = datetime.now() - start_time
-  #csvfile.close()
   print('per record Time (hh:mm:ss.ms) {}'.format(
     timedelta(seconds=end - start) / args.customers))
   print(
