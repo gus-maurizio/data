@@ -90,8 +90,8 @@ def main():
     plt.title('Gamblers Ruin', fontname='Times New Roman',fontweight='bold')
     plt.xlabel('games')
     plt.ylabel('Bankroll')
-    plt.axhline(y=args.a, xmin=0, xmax=xmx, hold=None, c='green',linewidth=0.5, ls='dashed')
-    plt.axhline(y=args.a+args.b, xmin=0, xmax=xmx, hold=None, c='blue',linewidth=0.5, ls='dashed')
+    plt.axhline(y=args.a, xmin=0, xmax=xmx, c='green',linewidth=0.5, ls='dashed')
+    plt.axhline(y=args.a+args.b, xmin=0, xmax=xmx, c='blue',linewidth=0.5, ls='dashed')
 
     plt.text(10, args.x+5 , 'p={:.2f} Initial={} Win={}'.format(args.p,args.a,args.a+args.b))
 
