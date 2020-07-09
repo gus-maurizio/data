@@ -9,6 +9,8 @@ __pycache__/
 *.csv
 *.json
 target/
+env/
+venv/
 
 # Distribution / packaging
 .Python
