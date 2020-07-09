@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import random, csv, json, argparse, uuid, os
+import random, csv, json, argparse, uuid, os, gzip
 
 from bloom_filter import BloomFilter
 from decimal import Decimal
@@ -24,13 +24,14 @@ class CustomJsonEncoder(json.JSONEncoder):
 
 def getArgs():
   parser = argparse.ArgumentParser(description='Generate test data.')
-  parser.add_argument('-c', '--customers', type=int, default=10, help='#customers')
+  parser.add_argument('-c', '--customers', type=int, default=100000, help='#customers')
   parser.add_argument('-k', '--cash',   type=int, default=5, help='avgcashdeposits')
   parser.add_argument('-q', '--check',  type=int, default=5, help='avgcheckdeposits')
   parser.add_argument('-a', '--amount', type=int, default=1000, help='avgamount')
   parser.add_argument('-s', '--std',    type=int, default=500, help='stdamount')
 
-  parser.add_argument('-fc', '--fcustomer', type=str, default="customer.csv", help='filename')
+  parser.add_argument('-fc', '--fcustomer', type=str, default="customer", help='filename (no extension)')
+  parser.add_argument('-z',  '--gzip',      type=str2bool, nargs='?',const=True, default=False,help='Activate gzip.')
   args = parser.parse_args()
   return args
 
@@ -45,10 +46,17 @@ def genCustomerIDs(num=10, err=0.01):
     customerIDs.add(str(id))
   return customerIDs
 
-def writeCustomers(customerIDs, fname="customer.csv"):
-  base = os.path.splitext(fname)[0]
-  csvfile = open(fname, 'w', newline='')
-  jsnfile = open(base + ".json", 'w')
+def writeCustomers(customerIDs, fname="customer", zip=False):
+  if zip:
+    myOpen = gzip.open
+    myMode = "wt"
+    mySuffix = ".gz"
+  else:
+    myOpen = open
+    myMode = "w"
+    mySuffix = ""
+  csvfile = myOpen(fname + ".csv"  + mySuffix, myMode, newline='')
+  jsnfile = myOpen(fname + ".json" + mySuffix, myMode)
   head = True
   for c in customerIDs:
     profile = fake.profile()
@@ -63,6 +71,16 @@ def writeCustomers(customerIDs, fname="customer.csv"):
   csvfile.close()
   jsnfile.close()
   return
+
+def str2bool(v):
+  if isinstance(v, bool):
+    return v
+  if v.lower() in ('yes', 'true', 't', 'y', '1'):
+    return True
+  elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+    return False
+  else:
+    raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def first_name_and_gender():
   g = 'M' if random.randint(0, 1) == 0 else 'F'
@@ -151,8 +169,12 @@ def title_office_org_salary_bonus():
 def main():
   args = getArgs()
   print(args)
+
+  start = timer()
+  start_time = datetime.now()
+
   customerIDs = genCustomerIDs(num=args.customers)
-  writeCustomers(customerIDs, fname=args.fcustomer)
+  writeCustomers(customerIDs, fname=args.fcustomer, zip=args.gzip)
   
   # Create customer IDs based on args.customers
   d = dict()
@@ -165,11 +187,8 @@ def main():
   #d['accrued_holidays']  = lambda: {'accrued_holiday':random.randint(0,20)}
   #d['transaction_value'] = lambda: {'transaction_value':random.randint(1,20000)}
 
-  numRows = 1000
   #csvfile = open('fakedata.csv', 'w', newline='')
   #head = True
-  start = timer()
-  start_time = datetime.now()
 
   #for _ in range(numRows):
   #	  row = {key: val for k in d.keys() for key,val in d[k]().items()}
@@ -185,9 +204,9 @@ def main():
   time_elapsed = datetime.now() - start_time
   #csvfile.close()
   print('per record Time (hh:mm:ss.ms) {}'.format(
-    timedelta(seconds=end - start) / numRows))
+    timedelta(seconds=end - start) / args.customers))
   print(
-    'Clock Time (hh:mm:ss.ms) {} for {} records'.format(time_elapsed, numRows))
+    'Clock Time (hh:mm:ss.ms) {} for {} records'.format(time_elapsed, args.customers))
 
 
 if __name__ == '__main__':
