@@ -1,0 +1,4 @@
+argparse==1.4.0
+Faker==4.1.1
+bloom-filter==1.3
+
