@@ -25,13 +25,12 @@ class CustomJsonEncoder(json.JSONEncoder):
 def getArgs():
   parser = argparse.ArgumentParser(description='Generate test data.')
   parser.add_argument('-c', '--customers', type=int, default=1000, help='#customers')
-  # parser.add_argument('-k', '--cash',   type=int, default=5, help='avgcashdeposits')
-  # parser.add_argument('-q', '--check',  type=int, default=5, help='avgcheckdeposits')
+  parser.add_argument('-b', '--banks',     type=int, default=200,  help='#banks')
 
   parser.add_argument('-d', '--deposits',     type=int,   default=10,    help='#bank deposits')
   parser.add_argument('-k', '--cash',         type=float, default=0.15,  help='% of deposits in cash')
-  parser.add_argument('-a', '--amount',       type=int, default=5000,    help='avgamount')
-  parser.add_argument('-s', '--std',          type=int, default=1000,    help='stdamount')
+  parser.add_argument('-a', '--amount',       type=int, default=4000,    help='avgamount')
+  parser.add_argument('-s', '--std',          type=int, default=3000,    help='stdamount')
   
 
   parser.add_argument('-fc', '--fcustomer', type=str, default="customer", help='filename (no extension)')
@@ -50,6 +49,17 @@ def genCustomerIDs(num=10, err=0.01):
     bloom.add(str(id))
     customerIDs.add(str(id))
   return customerIDs
+
+def genBankIDs(num=10, err=0.01):
+  bloom = BloomFilter(max_elements=2*num, error_rate=err)
+  bankIDs = set()
+  for i in range(num):
+    id = uuid.uuid4()
+    while "BANK-" + str(id) in bloom:
+      id = uuid.uuid4()
+    bloom.add("BANK-" + str(id))
+    bankIDs.add("BANK-" + str(id))
+  return bankIDs
 
 def writeCustomers(customerIDs, fname="customer", zip=False):
   if zip:
@@ -77,7 +87,7 @@ def writeCustomers(customerIDs, fname="customer", zip=False):
   jsnfile.close()
   return
 
-def generateDeposits(customerIDs, num=10, fname="deposits", mean=100, std=20, cash=0.10, zip=False):
+def generateDeposits(customerIDs, bankIDs, num=10, fname="deposits", mean=100, std=20, cash=0.10, zip=False):
   if zip:
     myOpen = gzip.open
     myMode = "wt"
@@ -90,39 +100,38 @@ def generateDeposits(customerIDs, num=10, fname="deposits", mean=100, std=20, ca
   jsnfile = myOpen(fname + ".json" + mySuffix, myMode)
 
   # create random transactions between customers (for bank deposits) and cash deposits
+  head = True
   for i in range(num):
     # spin the roulette
     luck = random.random()
     isBank = True if luck > cash else False
     numCustomers = 2 if isBank else 1
     customers = random.sample(customerIDs, numCustomers) # returns 1 or 2 customers
+    banks     = random.sample(bankIDs, numCustomers) # returns 1 or 2 banks
     deposit = round(random.gauss(mean, std),2)
     timestamp = fake.date_time_between_dates(datetime_start=(datetime.today() - timedelta(days=1)).replace(hour=1, minute=0, second=0, microsecond=0), datetime_end=(datetime.today() - timedelta(days=1)).replace(hour=23, minute=30, second=0, microsecond=0), tzinfo=None)
     record = {
       "timestamp":      timestamp,
+      "type":           "bankxfer" if isBank else "cashdepo",
       "amount":         deposit,
-      "type":           "bankxfer" if isBank else "cash",
       "to_customer":    customers[0],
-      "from_customer":  customers[1] if isBank else None,
+      "to_bank":        banks[0],
       "to_account":     fake.iban(),
+      "from_customer":  customers[1] if isBank else None,
+      "from_bank":      banks[1] if isBank else None,
       "from_account":   fake.iban() if isBank else None,
     }
-    print("{} {} {} {} {} {:0.2f} {}\n{}".format(i,luck,isBank,numCustomers,customers,deposit, timestamp,json.dumps(record, cls=CustomJsonEncoder)))
+    # print("{} {} {} {} {} {:0.2f} {}\n{}".format(i,luck,isBank,numCustomers,customers,deposit, timestamp,json.dumps(record, cls=CustomJsonEncoder)))
+    print(json.dumps(record, cls=CustomJsonEncoder), file=jsnfile)
+    if head:
+      head = False
+      fieldnames = record.keys()
+      writer = csv.DictWriter(csvfile, fieldnames=fieldnames, quoting=csv.QUOTE_NONNUMERIC)
+      writer.writeheader()
+    writer.writerow(record)
+  csvfile.close()
+  jsnfile.close()
   return
-  # head = True
-  # for c in customerIDs:
-  #   profile = fake.profile()
-  #   profile['ID'] = c
-  #   print(json.dumps(profile, cls=CustomJsonEncoder), file=jsnfile)
-  #   if head:
-  #     head = False
-  #     fieldnames = profile.keys()
-  #     writer = csv.DictWriter(csvfile, fieldnames=fieldnames, quoting=csv.QUOTE_NONNUMERIC)
-  #     writer.writeheader()
-  #   writer.writerow(profile)
-  # csvfile.close()
-  # jsnfile.close()
-  # return
 
 def str2bool(v):
   if isinstance(v, bool):
@@ -143,10 +152,11 @@ def main():
   start_time = datetime.now()
 
   customerIDs = genCustomerIDs(num=args.customers)
+  bankIDs     = genBankIDs(num=args.banks)
   writeCustomers(customerIDs, fname=args.fcustomer, zip=args.gzip)
 
   # We proceed to generate transactions for bank deposits for randomly selected customers
-  generateDeposits(customerIDs, num=args.deposits, fname=args.fdeposits, mean=args.amount, std=args.std, cash=args.cash, zip=args.gzip)
+  generateDeposits(customerIDs, bankIDs, num=args.deposits, fname=args.fdeposits, mean=args.amount, std=args.std, cash=args.cash, zip=args.gzip)
 
   end = timer()
   time_elapsed = datetime.now() - start_time
