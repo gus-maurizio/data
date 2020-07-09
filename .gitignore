@@ -8,6 +8,11 @@ __pycache__/
 
 *.csv
 *.json
+*.gz
+*.zip
+*.tar
+*.tgz
+*.jar
 target/
 env/
 venv/
