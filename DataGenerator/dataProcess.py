@@ -40,9 +40,9 @@ def processDeposits(fname="deposits", zip=False):
   csvfile = myOpen(fname + ".csv"  + mySuffix, myMode, newline='')
   jsnfile = myOpen(fname + ".json" + mySuffix, myMode)
 
-  bankDeposit = Context().create_decimal('0.00')
-  cashDeposit = Context().create_decimal('0.00')
-  totDeposits = Context().create_decimal('0.00')
+  bankDeposit = Decimal('0.00')
+  cashDeposit = Decimal('0.00')
+  totDeposits = Decimal('0.00')
   reader = csv.DictReader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
   for row in reader:
     amt = Decimal(row['amount'])
@@ -52,11 +52,15 @@ def processDeposits(fname="deposits", zip=False):
       bankDeposit = bankDeposit + amt
     if row['type'] == 'cashdepo':
       cashDeposit = cashDeposit + amt
+    if numRecords % 10000 == 0:
+      # print(numRecords)
+      print('>>>>> {:10,d} {:20,.2f} {:20,.2f} {:20,.2f}'.format(numRecords,totDeposits,bankDeposit,cashDeposit))
+      # print('{0:20.2f}'.format(bankDeposit))
+      # print('{0:20.2f}'.format(cashDeposit))
+
   csvfile.close()
   jsnfile.close()
-  print('{0:20.2f}'.format(totDeposits))
-  print('{0:20.2f}'.format(bankDeposit))
-  print('{0:20.2f}'.format(cashDeposit))
+  print('TOTAL {:20d} {:20,.2f} {:20,.2f} {:20,.2f}'.format(numRecords,totDeposits,bankDeposit,cashDeposit))
   return numRecords
 
 def str2bool(v):
