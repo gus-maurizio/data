@@ -36,7 +36,15 @@ def processDeposits(fname="deposits", zip=False):
     myOpen = open
     myMode = "r"
     mySuffix = ""
+
   numRecords = 0
+  numBank = 0
+  numCash = 0
+  to_customers = set()
+  to_banks = set()
+  from_customers = set()
+  from_banks = set()
+
   csvfile = myOpen(fname + ".csv"  + mySuffix, myMode, newline='')
   jsnfile = myOpen(fname + ".json" + mySuffix, myMode)
 
@@ -48,19 +56,23 @@ def processDeposits(fname="deposits", zip=False):
     amt = Decimal(row['amount'])
     numRecords  += 1
     totDeposits += amt
+    to_customers.add(row['to_customer'])
+    to_banks.add(row['to_bank'])
     if row['type'] == 'bankxfer':
       bankDeposit = bankDeposit + amt
+      numBank  += 1
+      from_customers.add(row['from_customer'])
+      from_banks.add(row['from_bank'])
     if row['type'] == 'cashdepo':
       cashDeposit = cashDeposit + amt
-    if numRecords % 10000 == 0:
-      # print(numRecords)
-      print('>>>>> {:10,d} {:20,.2f} {:20,.2f} {:20,.2f}'.format(numRecords,totDeposits,bankDeposit,cashDeposit))
-      # print('{0:20.2f}'.format(bankDeposit))
-      # print('{0:20.2f}'.format(cashDeposit))
+      numCash  += 1
+    if numRecords % 50000 == 0:
+      print('>>>>> {:10,d} {:20,.2f} {:10,d} {:20,.2f} {:10,d} {:20,.2f}'.format(numRecords,totDeposits,numBank,bankDeposit,numCash,cashDeposit))
 
   csvfile.close()
   jsnfile.close()
-  print('TOTAL {:20d} {:20,.2f} {:20,.2f} {:20,.2f}'.format(numRecords,totDeposits,bankDeposit,cashDeposit))
+  print('##### {:10,d} {:20,.2f} {:10,d} {:20,.2f} {:10,d} {:20,.2f}'.format(numRecords,totDeposits,numBank,bankDeposit,numCash,cashDeposit))
+  print('##### unique TO customers {:10,d} banks {:10,d} FROM customers {:10,d} banks {:10,d} '.format(len(to_customers),len(to_banks),len(from_customers),len(from_banks)))
   return numRecords
 
 def str2bool(v):
