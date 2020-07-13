@@ -14,7 +14,6 @@ public class CamelRouteTimerHealthCheck extends RouteBuilder {
         .streamCaching()
         .setBody(simple("Hello from timer at ${header.firedTime}"))
         .to("log:healthcheck?level=INFO&showAll=true")
-		.to("bean:myNamedBean?method=hello")
         .to("log:beanlog?level=INFO&showAll=true");
     }
 }
